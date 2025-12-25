@@ -364,9 +364,3 @@ MIT License - see LICENSE file
 ## 🤝 Support
 
 - Technical: anthony.lo@wiko.com.hk
-- Project: jonathan.lo@wiko.com.hk
-
----
-
-Built with ❤️ for Wiko Cutlery Ltd.
-Hong Kong | Shenzhen | Yangjiang

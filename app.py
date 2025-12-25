@@ -6,18 +6,84 @@ Flask-based API for manufacturing defect analysis.
 
 import os
 from datetime import datetime
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from functools import wraps
 
 from config import Config
 from views.analysis import analysis_bp
 from views.metadata import metadata_bp
 
 app = Flask(__name__)
-CORS(app)
+
+# Environment-based CORS configuration
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:5173')
+if cors_origins == '*':
+    # Only allow wildcard in development
+    if os.getenv('ENVIRONMENT', 'development') == 'production':
+        raise ValueError("CORS_ORIGINS cannot be '*' in production. Set specific origins in .env")
+    CORS(app)
+else:
+    # Production: restrict to specific origins
+    allowed_origins = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+    CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+# Rate Limiting
+# Configure different limits based on environment
+rate_limit_per_ip = os.getenv('RATE_LIMIT_PER_IP', '60 per minute')
+rate_limit_per_key = os.getenv('RATE_LIMIT_PER_KEY', '300 per minute')
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[rate_limit_per_ip],
+    storage_uri=os.getenv('REDIS_URL', 'memory://'),  # Use Redis in production
+    strategy="fixed-window"
+)
+
+# API Authentication Middleware
+def require_api_key(f):
+    """Decorator to require API key authentication for endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Skip authentication in development mode if API_KEY not set
+        api_key_required = os.getenv('API_KEY')
+        if not api_key_required and os.getenv('ENVIRONMENT', 'development') == 'development':
+            # Development mode without API key - allow access but warn
+            return f(*args, **kwargs)
+
+        # Production mode or API key is set - enforce authentication
+        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+        if not api_key or api_key != api_key_required:
+            return jsonify({
+                "error": "Unauthorized",
+                "message": "Valid API key required. Include X-API-Key header or api_key query parameter."
+            }), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+
+    # Only add HSTS in production with HTTPS
+    if os.getenv('ENVIRONMENT') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+
+    # Content Security Policy
+    response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+
+    return response
 
 # Register Blueprints
 app.register_blueprint(analysis_bp, url_prefix='/api/v1')

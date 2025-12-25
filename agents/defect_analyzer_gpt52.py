@@ -15,15 +15,19 @@ Key GPT-5.2 Features Used:
 import os
 import base64
 import json
+import logging
 from enum import Enum
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from openai import AzureOpenAI
+from openai import AzureOpenAI, APIError, APITimeoutError, RateLimitError
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 
 class DefectType(Enum):
@@ -253,6 +257,80 @@ class WikoDefectAnalyzerGPT52:
         if "/api/projects/" in base:
             base = base.split("/api/projects/")[0]
         return base
+
+    def _call_azure_api_with_retry(self, api_call_func, max_retries=3):
+        """
+        Wrapper for Azure API calls with retry logic and exponential backoff.
+
+        Args:
+            api_call_func: Function that makes the Azure API call
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            API response
+
+        Raises:
+            APIError: If all retries fail
+        """
+        import time
+
+        delay = 1.0  # Initial delay in seconds
+        last_exception = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                return api_call_func()
+
+            except RateLimitError as e:
+                # Rate limit error - use longer backoff
+                last_exception = e
+                retry_after = getattr(e, 'retry_after', delay * 2)
+                logger.warning(
+                    f"Rate limit hit (attempt {attempt + 1}/{max_retries + 1}). "
+                    f"Retrying after {retry_after:.1f}s"
+                )
+                if attempt < max_retries:
+                    time.sleep(retry_after)
+                    delay = min(retry_after * 2, 60)
+
+            except APITimeoutError as e:
+                # Timeout error - retry with backoff
+                last_exception = e
+                logger.warning(
+                    f"API timeout (attempt {attempt + 1}/{max_retries + 1}). "
+                    f"Retrying in {delay:.1f}s"
+                )
+                if attempt < max_retries:
+                    time.sleep(delay)
+                    delay = min(delay * 2, 30)
+
+            except APIError as e:
+                # Generic API error - check if retryable
+                last_exception = e
+                status_code = getattr(e, 'status_code', 0)
+
+                # Retryable errors: 429, 500, 502, 503, 504
+                if status_code in [429, 500, 502, 503, 504]:
+                    logger.warning(
+                        f"API error {status_code} (attempt {attempt + 1}/{max_retries + 1}). "
+                        f"Retrying in {delay:.1f}s"
+                    )
+                    if attempt < max_retries:
+                        time.sleep(delay)
+                        delay = min(delay * 2, 60)
+                else:
+                    # Non-retryable error
+                    logger.error(f"Non-retryable API error: {e}")
+                    raise
+
+            except Exception as e:
+                # Unexpected error
+                logger.error(f"Unexpected error during API call: {e}")
+                raise
+
+        # All retries exhausted
+        logger.error(f"All {max_retries + 1} API call attempts failed")
+        raise last_exception
     
     def _encode_image(self, image_path: str) -> str:
         """Encode image to base64 for API submission"""
@@ -436,33 +514,38 @@ class WikoDefectAnalyzerGPT52:
         </output_format>
         """
         
-        response = self.client.chat.completions.create(
-            model=self.vision_deployment,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"Inspect this {product_sku} product for manufacturing defects. Provide comprehensive analysis."
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{media_type};base64,{image_base64}",
-                                "detail": "high"
+        # Wrap API call in retry logic
+        def make_api_call():
+            return self.client.chat.completions.create(
+                model=self.vision_deployment,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Inspect this {product_sku} product for manufacturing defects. Provide comprehensive analysis."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{media_type};base64,{image_base64}",
+                                    "detail": "high"
+                                }
                             }
-                        }
-                    ]
-                }
-            ],
-            max_completion_tokens=2000,
-            response_format={"type": "json_object"},
-            # GPT-5.2 specific parameters
-            reasoning_effort=reasoning_effort
-            # verbosity parameter may not be supported by all deployments
-        )
+                        ]
+                    }
+                ],
+                max_completion_tokens=2000,
+                response_format={"type": "json_object"},
+                timeout=int(os.getenv('AZURE_API_TIMEOUT', 30)),
+                # GPT-5.2 specific parameters
+                reasoning_effort=reasoning_effort
+                # verbosity parameter may not be supported by all deployments
+            )
+
+        response = self._call_azure_api_with_retry(make_api_call)
 
         # Extract content - GPT-5.2 may have different response structure
         content = response.choices[0].message.content
@@ -576,18 +659,23 @@ class WikoDefectAnalyzerGPT52:
         Perform comprehensive root cause analysis using 5-Why and Ishikawa methodology.
         """
         
-        response = self.client.chat.completions.create(
-            model=self.reasoning_deployment,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content}
-            ],
-            max_completion_tokens=3000,
-            response_format={"type": "json_object"},
-            # GPT-5.2 xhigh reasoning for deep analysis
-            reasoning_effort=reasoning_effort
-            # verbosity parameter may not be supported
-        )
+        # Wrap API call in retry logic
+        def make_api_call():
+            return self.client.chat.completions.create(
+                model=self.reasoning_deployment,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                max_completion_tokens=3000,
+                response_format={"type": "json_object"},
+                timeout=int(os.getenv('AZURE_API_TIMEOUT', 30)),
+                # GPT-5.2 xhigh reasoning for deep analysis
+                reasoning_effort=reasoning_effort
+                # verbosity parameter may not be supported
+            )
+
+        response = self._call_azure_api_with_retry(make_api_call)
         
         result = json.loads(response.choices[0].message.content)
         
@@ -661,15 +749,20 @@ class WikoDefectAnalyzerGPT52:
         Generate specific, actionable recommendations for Wiko's Yangjiang facility.
         """
         
-        response = self.client.chat.completions.create(
-            model=self.reports_deployment,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": context}
-            ],
-            max_completion_tokens=1500,
-            response_format={"type": "json_object"}
-        )
+        # Wrap API call in retry logic
+        def make_api_call():
+            return self.client.chat.completions.create(
+                model=self.reports_deployment,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": context}
+                ],
+                max_completion_tokens=1500,
+                response_format={"type": "json_object"},
+                timeout=int(os.getenv('AZURE_API_TIMEOUT', 30))
+            )
+
+        response = self._call_azure_api_with_retry(make_api_call)
         
         return json.loads(response.choices[0].message.content)
     
