@@ -51,25 +51,44 @@ export default function DefectAnalyzerDashboard() {
 
   const handleAnalyze = async () => {
     if (!selectedFile) return;
-    
+
     setIsAnalyzing(true);
-    
-    // Simulate API call - replace with actual API endpoint
-    const formDataObj = new FormData();
-    formDataObj.append('image', selectedFile);
-    formDataObj.append('product_sku', formData.product_sku);
-    formDataObj.append('facility', formData.facility);
-    const response = await fetch('/api/v1/analyze', { method: 'POST', body: formDataObj });
-    
-    const result = await response.json();
-    if(result.success) {
-      setAnalysisResult(result.analysis);
-    } else {
-      // A simple error handling. You might want to show a notification to the user.
-      console.error("Analysis failed:", result.error);
-      setAnalysisResult(null);
+
+    try {
+      // Convert image to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve) => {
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(selectedFile);
+      });
+
+      const imageBase64 = await base64Promise;
+
+      // Call API with base64 image
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      const response = await fetch(`${apiUrl}/api/v1/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: imageBase64,
+          product_sku: formData.product_sku,
+          facility: formData.facility
+        })
+      });
+
+      const result = await response.json();
+      setAnalysisResult(result);
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      setAnalysisResult({ error: error.message });
+    } finally {
+      setIsAnalyzing(false);
     }
-    setIsAnalyzing(false);
   };
 
   const getSeverityColor = (severity) => {
