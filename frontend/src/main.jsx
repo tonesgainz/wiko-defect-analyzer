@@ -1,10 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import DefectAnalyzerDashboard from './DefectAnalyzerDashboard.jsx'
+import WikoDefectAnalyzerPro from './WikoDefectAnalyzerPro.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <DefectAnalyzerDashboard />
+    <WikoDefectAnalyzerPro />
   </React.StrictMode>,
 )
