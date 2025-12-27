@@ -300,7 +300,7 @@ python3 app.py
 The `.env` file contains a real Azure API key that was visible during development:
 
 ```bash
-AZURE_AI_API_KEY="***REMOVED***"
+AZURE_AI_API_KEY="[REDACTED - Key has been rotated]"
 ```
 
 **Required Actions:**
