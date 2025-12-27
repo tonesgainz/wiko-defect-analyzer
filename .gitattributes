@@ -1,0 +1,27 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Explicitly set text files
+*.py text
+*.js text
+*.jsx text
+*.md text
+*.yml text
+*.yaml text
+*.json text
+*.txt text
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Binary files
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.zip binary
