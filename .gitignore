@@ -39,3 +39,5 @@ logs/
 .pytest_cache/
 coverage.xml
 .tox/
+.env.save
+.env

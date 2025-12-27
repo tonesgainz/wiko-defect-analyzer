@@ -5,16 +5,18 @@ Flask-based API for manufacturing defect analysis.
 """
 
 import os
+import signal
+import sys
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from functools import wraps
 
 from config import Config
-from views.analysis import analysis_bp
+from views.analysis import analysis_bp, cleanup_event_loop
 from views.metadata import metadata_bp
+from utils.auth import require_api_key
 
 app = Flask(__name__)
 
@@ -46,27 +48,6 @@ limiter = Limiter(
     storage_uri=os.getenv('REDIS_URL', 'memory://'),  # Use Redis in production
     strategy="fixed-window"
 )
-
-# API Authentication Middleware
-def require_api_key(f):
-    """Decorator to require API key authentication for endpoints"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Skip authentication in development mode if API_KEY not set
-        api_key_required = os.getenv('API_KEY')
-        if not api_key_required and os.getenv('ENVIRONMENT', 'development') == 'development':
-            # Development mode without API key - allow access but warn
-            return f(*args, **kwargs)
-
-        # Production mode or API key is set - enforce authentication
-        api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
-        if not api_key or api_key != api_key_required:
-            return jsonify({
-                "error": "Unauthorized",
-                "message": "Valid API key required. Include X-API-Key header or api_key query parameter."
-            }), 401
-        return f(*args, **kwargs)
-    return decorated_function
 
 # Security headers middleware
 @app.after_request
@@ -132,6 +113,19 @@ def too_large(e):
 @app.errorhandler(500)
 def server_error(e):
     return jsonify({"error": "Internal server error"}), 500
+
+
+def graceful_shutdown(signum, frame):
+    """Handle graceful shutdown on SIGTERM/SIGINT"""
+    print("\n\n🛑 Shutting down gracefully...")
+    cleanup_event_loop()
+    print("✅ Cleanup complete. Goodbye!")
+    sys.exit(0)
+
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGTERM, graceful_shutdown)
+signal.signal(signal.SIGINT, graceful_shutdown)
 
 
 if __name__ == '__main__':

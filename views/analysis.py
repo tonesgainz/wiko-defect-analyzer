@@ -17,6 +17,7 @@ from utils.validation import (
     validate_product_sku,
     sanitize_filename
 )
+from utils.auth import require_api_key
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -40,8 +41,27 @@ def get_event_loop():
         asyncio.set_event_loop(_event_loop)
     return _event_loop
 
+def cleanup_event_loop():
+    """Cleanup shared event loop on application shutdown"""
+    global _event_loop
+    if _event_loop and not _event_loop.is_closed():
+        try:
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(_event_loop)
+            for task in pending:
+                task.cancel()
+            # Run until all tasks are cancelled
+            _event_loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            _event_loop.close()
+            logger.info("Event loop cleaned up successfully")
+        except Exception as e:
+            logger.error(f"Error cleaning up event loop: {e}")
+        finally:
+            _event_loop = None
+
 
 @analysis_bp.route('/analyze', methods=['POST'])
+@require_api_key
 def analyze_defect():
     """
     Analyze a single product image for defects.
@@ -145,6 +165,7 @@ def analyze_defect():
 
 
 @analysis_bp.route('/analyze/batch', methods=['POST'])
+@require_api_key
 def analyze_batch():
     """
     Analyze multiple product images in batch.
@@ -275,6 +296,7 @@ def analyze_batch():
 
 
 @analysis_bp.route('/shift-report', methods=['POST'])
+@require_api_key
 def generate_shift_report():
     """
     Generate a shift summary report from analysis results.
