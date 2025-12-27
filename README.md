@@ -350,6 +350,16 @@ wiko-defect-analyzer-clean/
 └── requirements.txt     # Python dependencies
 ```
 
+## 📚 Documentation
+
+- **[README.md](README.md)** - This file, project overview and quick start
+- **[CLAUDE.md](CLAUDE.md)** - Context for AI assistants (Claude Code)
+- **[SECURITY.md](SECURITY.md)** - Security policy and vulnerability reporting
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture overview
+- **[docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md)** - Complete AWS deployment guide
+- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing guidelines and procedures
+- **[docs/README.md](docs/README.md)** - Documentation index
+
 ### Adding New Defect Types
 
 1. Add to `DefectType` enum in `agents/defect_analyzer.py`
