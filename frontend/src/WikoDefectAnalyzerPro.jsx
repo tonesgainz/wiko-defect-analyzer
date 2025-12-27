@@ -788,101 +788,200 @@ export default function WikoDefectAnalyzerPro() {
                     <div className="space-y-6">
                       {/* Status Banner */}
                       <div className={`p-4 rounded-xl border ${
-                        analysisResult.defect_detected
+                        analysisResult.has_defect || analysisResult.defect_detected
                           ? 'bg-red-500/10 border-red-500/30'
                           : 'bg-emerald-500/10 border-emerald-500/30'
                       }`}>
                         <div className="flex items-center gap-3">
-                          {analysisResult.defect_detected ? (
+                          {(analysisResult.has_defect || analysisResult.defect_detected) ? (
                             <XCircle className="w-8 h-8 text-red-400" />
                           ) : (
                             <CheckCircle className="w-8 h-8 text-emerald-400" />
                           )}
-                          <div>
+                          <div className="flex-1">
                             <div className={`text-lg font-bold ${
-                              analysisResult.defect_detected ? 'text-red-400' : 'text-emerald-400'
+                              (analysisResult.has_defect || analysisResult.defect_detected) ? 'text-red-400' : 'text-emerald-400'
                             }`}>
-                              {analysisResult.defect_detected ? 'DEFECT DETECTED' : 'INSPECTION PASSED'}
+                              {(analysisResult.has_defect || analysisResult.defect_detected) ? 'DEFECT DETECTED' : 'INSPECTION PASSED'}
                             </div>
                             <div className="text-xs text-gray-500">
                               ID: {analysisResult.defect_id}
                             </div>
                           </div>
+                          {analysisResult.recommended_action && (
+                            <div className={`px-4 py-2 rounded-lg text-sm font-bold ${
+                              analysisResult.recommended_action === 'reject' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                              analysisResult.recommended_action === 'rework' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
+                              analysisResult.recommended_action === 'accept_with_discount' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
+                              analysisResult.recommended_action === 'escalate_to_supervisor' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                              'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            }`}>
+                              {analysisResult.recommended_action.replace(/_/g, ' ').toUpperCase()}
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {analysisResult.defect_detected && (
-                        <>
-                          {/* Defect Details */}
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-500">Type</span>
-                              <span className="font-mono text-sm text-white bg-gray-800 px-3 py-1 rounded-lg">
-                                {analysisResult.defect_type?.replace(/_/g, ' ').toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-500">Severity</span>
-                              <SeverityBadge severity={analysisResult.severity} size="sm" />
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-500">Confidence</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-24 h-2 bg-gray-800 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full"
-                                    style={{ width: `${confidenceValue * 100}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-sm font-mono text-teal-400">
-                                  {(confidenceValue * 100).toFixed(1)}%
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-gray-500">Stage</span>
-                              <span className="text-sm text-orange-400">
-                                {analysisResult.probable_stage?.replace(/_/g, ' ').toUpperCase()}
-                              </span>
-                            </div>
+                      {/* Complete Analysis Details */}
+                      <div className="space-y-4">
+                        {/* Basic Info Grid */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">Defect Type</span>
+                            <span className="font-mono text-sm text-white bg-gray-800 px-3 py-1 rounded-lg">
+                              {analysisResult.defect_type?.replace(/_/g, ' ').toUpperCase()}
+                            </span>
                           </div>
-
-                          {/* Root Cause */}
-                          <div>
-                            <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Root Cause</h4>
-                            <p className="text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3 border border-gray-700">
-                              {analysisResult.root_cause}
-                            </p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-500">Severity</span>
+                            <SeverityBadge severity={analysisResult.severity} size="sm" />
                           </div>
+                        </div>
 
-                          {/* Actions */}
-                          {analysisResult.corrective_actions?.length > 0 && (
-                            <div>
-                              <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Corrective Actions</h4>
-                              <ul className="space-y-2">
-                                {analysisResult.corrective_actions.map((action, i) => (
-                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                                    <ChevronRight className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
-                                    {action}
-                                  </li>
-                                ))}
-                              </ul>
+                        {/* Confidence Bar */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">Confidence</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-32 h-3 bg-gray-800 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-teal-500 to-cyan-500 rounded-full"
+                                style={{ width: `${confidenceValue * 100}%` }}
+                              ></div>
                             </div>
-                          )}
-                        </>
+                            <span className="text-sm font-mono text-teal-400 w-12 text-right">
+                              {(confidenceValue * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Manufacturing Stage */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">Manufacturing Stage</span>
+                          <span className="text-sm text-orange-400 font-mono">
+                            {analysisResult.probable_stage?.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      {analysisResult.description && (
+                        <div>
+                          <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Description</h4>
+                          <p className="text-sm text-gray-300 bg-gray-800/50 rounded-lg p-4 border border-gray-700 leading-relaxed">
+                            {analysisResult.description}
+                          </p>
+                        </div>
                       )}
 
-                      {/* Metadata */}
+                      {/* Location Information */}
+                      {analysisResult.location && (
+                        <div>
+                          <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Defect Location</h4>
+                          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-400">Region</span>
+                              <span className="text-sm text-cyan-400 font-mono">
+                                {analysisResult.location.region?.replace(/_/g, ' ').toUpperCase()}
+                              </span>
+                            </div>
+                            {analysisResult.location.bounding_box && (
+                              <div>
+                                <span className="text-sm text-gray-400 block mb-2">Bounding Box (% coordinates)</span>
+                                <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                                  <div className="flex justify-between bg-gray-900/50 px-2 py-1 rounded">
+                                    <span className="text-gray-500">X:</span>
+                                    <span className="text-teal-400">{analysisResult.location.bounding_box.x}%</span>
+                                  </div>
+                                  <div className="flex justify-between bg-gray-900/50 px-2 py-1 rounded">
+                                    <span className="text-gray-500">Y:</span>
+                                    <span className="text-teal-400">{analysisResult.location.bounding_box.y}%</span>
+                                  </div>
+                                  <div className="flex justify-between bg-gray-900/50 px-2 py-1 rounded">
+                                    <span className="text-gray-500">Width:</span>
+                                    <span className="text-teal-400">{analysisResult.location.bounding_box.width}%</span>
+                                  </div>
+                                  <div className="flex justify-between bg-gray-900/50 px-2 py-1 rounded">
+                                    <span className="text-gray-500">Height:</span>
+                                    <span className="text-teal-400">{analysisResult.location.bounding_box.height}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Measurements */}
+                      {analysisResult.measurements && (analysisResult.measurements.defect_size_mm || analysisResult.measurements.affected_area_percent) && (
+                        <div>
+                          <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Measurements</h4>
+                          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 grid grid-cols-2 gap-4">
+                            {analysisResult.measurements.defect_size_mm && (
+                              <div>
+                                <span className="text-sm text-gray-400 block mb-1">Defect Size</span>
+                                <span className="text-xl font-mono text-orange-400">
+                                  {analysisResult.measurements.defect_size_mm} <span className="text-sm text-gray-500">mm</span>
+                                </span>
+                              </div>
+                            )}
+                            {analysisResult.measurements.affected_area_percent && (
+                              <div>
+                                <span className="text-sm text-gray-400 block mb-1">Affected Area</span>
+                                <span className="text-xl font-mono text-orange-400">
+                                  {analysisResult.measurements.affected_area_percent} <span className="text-sm text-gray-500">%</span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Root Cause */}
+                      {analysisResult.root_cause_hypothesis && (
+                        <div>
+                          <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Root Cause Analysis</h4>
+                          <p className="text-sm text-gray-300 bg-gray-800/50 rounded-lg p-4 border border-gray-700 leading-relaxed">
+                            {analysisResult.root_cause_hypothesis}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Corrective Actions */}
+                      {analysisResult.corrective_actions?.length > 0 && (
+                        <div>
+                          <h4 className="text-xs text-gray-500 uppercase tracking-wider mb-2">Corrective Actions</h4>
+                          <ul className="space-y-2">
+                            {analysisResult.corrective_actions.map((action, i) => (
+                              <li key={i} className="flex items-start gap-3 text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+                                <span className="flex-shrink-0 w-6 h-6 bg-teal-500/20 text-teal-400 rounded-full flex items-center justify-center text-xs font-bold border border-teal-500/30">
+                                  {i + 1}
+                                </span>
+                                <span className="flex-1 pt-0.5">{action}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Metadata Footer */}
                       <div className="pt-4 border-t border-gray-800 grid grid-cols-2 gap-4 text-xs">
                         <div>
-                          <span className="text-gray-500 block">Timestamp</span>
-                          <span className="text-gray-300">
-                            {new Date(analysisResult.timestamp).toLocaleString()}
+                          <span className="text-gray-500 block mb-1">Inspection Time</span>
+                          <span className="text-gray-300 font-mono">
+                            {analysisResult.timestamp ? new Date(analysisResult.timestamp).toLocaleString() : 'N/A'}
                           </span>
                         </div>
                         <div>
-                          <span className="text-gray-500 block">Product</span>
-                          <span className="text-gray-300 font-mono">{analysisResult.product_sku}</span>
+                          <span className="text-gray-500 block mb-1">Product SKU</span>
+                          <span className="text-gray-300 font-mono">{analysisResult.product_sku || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block mb-1">Facility</span>
+                          <span className="text-gray-300 font-mono">{analysisResult.facility || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500 block mb-1">Analysis ID</span>
+                          <span className="text-gray-300 font-mono text-xs">{analysisResult.defect_id?.substring(0, 8) || 'N/A'}...</span>
                         </div>
                       </div>
                     </div>
@@ -892,7 +991,7 @@ export default function WikoDefectAnalyzerPro() {
                         <Eye className="w-8 h-8 text-gray-600" />
                       </div>
                       <p className="text-gray-500">Upload an image to analyze</p>
-                      <p className="text-xs text-gray-600 mt-1">AI-powered defect detection</p>
+                      <p className="text-xs text-gray-600 mt-1">AI-powered defect detection with comprehensive analysis</p>
                     </div>
                   )}
                 </div>
