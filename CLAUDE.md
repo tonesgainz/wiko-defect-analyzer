@@ -428,4 +428,49 @@ curl -X POST http://localhost:5000/api/v1/analyze \
 
 ---
 
+## Recent Changes (December 2025)
+
+### Codebase Cleanup
+
+**Completed December 27, 2025**
+
+- **Removed duplicate deployment scripts** and consolidated to `scripts/deploy.sh`
+- **Deleted unused frontend components**:
+  - App.jsx (985 lines, commented out)
+  - DefectAnalyzerDashboard.jsx (484 lines, never imported)
+- **Removed Azure-specific test files** (transitioning to AWS-focused architecture)
+- **Consolidated AWS documentation** into single comprehensive guide: `docs/AWS_DEPLOYMENT.md`
+- **Added workers/ and lambda/ to git** (actively deployed components)
+- **Cleaned up Python dependencies**:
+  - Removed 4 unused packages (semantic-kernel, azure-cosmos, sqlalchemy, opencensus-ext-azure)
+  - Created requirements-dev.txt for testing/development dependencies
+- **Improved git configuration**:
+  - Added .gitattributes for consistent line endings
+  - Enhanced .gitignore with Amplify, Claude Code, and build artifact patterns
+
+### Current Active Components
+
+- **Frontend**: WikoDefectAnalyzerPro.jsx (single page app, 1,184 lines)
+- **Backend**: Flask API (app.py) + agents/defect_analyzer_gpt52.py (Azure GPT-5.2)
+- **Workers**: workers/defect_worker.py (Azure Service Bus consumer for async processing)
+- **Lambda**: lambda/analyze_function.py (AWS Bedrock handler with Claude Opus 4)
+- **Infrastructure**: infrastructure/infrastructure.yaml (CloudFormation for AWS resources)
+
+### Deployment Status
+
+- **Frontend**: Deployed on AWS Amplify - https://main.d16gtun6rcncmo.amplifyapp.com
+- **Backend API**: AWS Lambda + API Gateway - https://6j6rqn6rug.execute-api.us-east-1.amazonaws.com/prod
+- **AI Model**: Claude Opus 4 via AWS Bedrock (us.anthropic.claude-opus-4-20250514-v1:0)
+
+### Cleanup Metrics
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Tracked files | 72 | ~52 | -28% |
+| Frontend LoC | 3,332 | 1,800 | -46% |
+| Root docs | 13 files | 5 files | -62% |
+| Python deps | 40 | 36 | -10% |
+
+---
+
 *Last updated: December 27, 2025*
