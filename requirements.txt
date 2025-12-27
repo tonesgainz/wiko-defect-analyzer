@@ -4,6 +4,8 @@ azure-ai-projects>=1.0.0b5
 azure-ai-inference>=1.0.0b6
 azure-identity>=1.19.0
 azure-ai-vision-imageanalysis>=1.0.0
+azure-servicebus>=7.12.2
+azure-storage-blob>=12.22.0
 
 # Semantic Kernel for orchestration
 semantic-kernel>=1.15.0

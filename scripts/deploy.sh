@@ -85,7 +85,7 @@ if [ -n "$STACK_EXISTS" ]; then
     echo "→ Stack exists, updating..."
     aws cloudformation update-stack \
         --stack-name $STACK_NAME \
-        --template-body file://infrastructure.yaml \
+        --template-body file://infrastructure/infrastructure.yaml \
         --parameters ParameterKey=Environment,ParameterValue=$ENVIRONMENT \
         --capabilities CAPABILITY_NAMED_IAM \
         --region $REGION 2>/dev/null || echo "   (No changes to apply)"
@@ -98,7 +98,7 @@ else
     echo "→ Creating new stack..."
     aws cloudformation create-stack \
         --stack-name $STACK_NAME \
-        --template-body file://infrastructure.yaml \
+        --template-body file://infrastructure/infrastructure.yaml \
         --parameters ParameterKey=Environment,ParameterValue=$ENVIRONMENT \
         --capabilities CAPABILITY_NAMED_IAM \
         --region $REGION

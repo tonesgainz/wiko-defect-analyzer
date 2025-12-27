@@ -233,6 +233,10 @@ class WikoDefectAnalyzerGPT52:
         self.project_endpoint = os.getenv("AZURE_AI_PROJECT_ENDPOINT")
         self.api_key = os.getenv("AZURE_AI_API_KEY")
         self.api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2025-04-01-preview")
+        self.token_scope = os.getenv(
+            "AZURE_OPENAI_TOKEN_SCOPE",
+            "https://cognitiveservices.azure.com/.default"
+        )
         
         # Model deployments
         self.vision_deployment = os.getenv("AZURE_VISION_DEPLOYMENT", "gpt-5-2")
@@ -244,10 +248,24 @@ class WikoDefectAnalyzerGPT52:
         self.rca_reasoning_effort = os.getenv("RCA_REASONING_EFFORT", "xhigh")
         self.default_verbosity = os.getenv("DEFAULT_VERBOSITY", "medium")
         
-        # Initialize client
-        self.client = AzureOpenAI(
-            azure_endpoint=self._get_openai_endpoint(),
-            api_key=self.api_key,
+        # Initialize client with API key (local dev) or managed identity (production)
+        self.client = self._create_openai_client()
+
+    def _create_openai_client(self) -> AzureOpenAI:
+        """Create AzureOpenAI client with API key or managed identity."""
+        endpoint = self._get_openai_endpoint()
+        if self.api_key:
+            return AzureOpenAI(
+                azure_endpoint=endpoint,
+                api_key=self.api_key,
+                api_version=self.api_version
+            )
+
+        credential = DefaultAzureCredential()
+        token_provider = get_bearer_token_provider(credential, self.token_scope)
+        return AzureOpenAI(
+            azure_endpoint=endpoint,
+            azure_ad_token_provider=token_provider,
             api_version=self.api_version
         )
     

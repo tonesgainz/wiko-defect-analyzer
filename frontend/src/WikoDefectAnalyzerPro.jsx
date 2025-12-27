@@ -286,22 +286,32 @@ export default function WikoDefectAnalyzerPro() {
 
   const handleAnalyze = async () => {
     if (!selectedFile) return;
-    
+
     setIsAnalyzing(true);
     const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
-    
+
     try {
-      const formDataObj = new FormData();
-      formDataObj.append('image', selectedFile);
-      formDataObj.append('product_sku', formData.product_sku);
-      formDataObj.append('facility', formData.facility);
-      
-      // Try actual API first
-      const response = await fetch(`${apiBase || ''}/api/v1/analyze`, { 
-        method: 'POST', 
-        body: formDataObj 
+      // Convert image to base64
+      const reader = new FileReader();
+      const imageBase64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(selectedFile);
       });
-      
+
+      // Send as JSON with base64 image
+      const response = await fetch(`${apiBase || ''}/api/v1/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: imageBase64,
+          product_sku: formData.product_sku,
+          facility: formData.facility
+        })
+      });
+
       const result = await response.json();
       const payload = result?.analysis || result;
 
@@ -319,7 +329,7 @@ export default function WikoDefectAnalyzerPro() {
       // Show real error to user - no mock data
       const errorMessage = error.message || 'API connection failed';
       setApiError(errorMessage);
-      setStatusMessage(`Error: ${errorMessage}. Please check backend server is running on http://localhost:5001`);
+      setStatusMessage(`Error: ${errorMessage}. Please check AWS API is configured correctly.`);
     }
     
     setIsAnalyzing(false);

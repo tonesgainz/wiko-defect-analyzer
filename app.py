@@ -15,6 +15,7 @@ from flask_limiter.util import get_remote_address
 
 from config import Config
 from views.analysis import analysis_bp, cleanup_event_loop
+from views.ingest import ingest_bp
 from views.metadata import metadata_bp
 from utils.auth import require_api_key
 
@@ -69,6 +70,7 @@ def add_security_headers(response):
 # Register Blueprints
 app.register_blueprint(analysis_bp, url_prefix='/api/v1')
 app.register_blueprint(metadata_bp, url_prefix='/api/v1')
+app.register_blueprint(ingest_bp, url_prefix='/api/v1')
 
 
 @app.route('/', methods=['GET'])
@@ -84,6 +86,7 @@ def index():
             "GET /api/v1/production-stages": "List production stages",
             "GET /api/v1/facilities": "List Wiko facilities",
             "POST /api/v1/analyze": "Analyze single image (requires: image, product_sku)",
+            "POST /api/v1/ingest": "Ingest image for async processing",
             "POST /api/v1/analyze/batch": "Batch image analysis",
             "POST /api/v1/shift-report": "Generate shift report"
         },
